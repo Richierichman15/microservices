@@ -1,0 +1,134 @@
+groups:
+- name: node_exporter_alerts
+  rules:
+  # Host is down
+  - alert: HostDown
+    expr: up{job="node_exporter"} == 0
+    for: 2m
+    labels:
+      severity: critical
+      service: infrastructure
+    annotations:
+      summary: "Host is down"
+      description: "Host {{ $labels.instance }} has been down for more than 2 minutes"
+      dashboard: "https://grafana.yourdomain.com/d/rYdddlPWk/node-exporter-full"
+
+  # High CPU Usage
+  - alert: HighCPUUsage
+    expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+    for: 5m
+    labels:
+      severity: warning
+      service: infrastructure
+    annotations:
+      summary: "High CPU usage on {{ $labels.instance }}"
+      description: "CPU usage is above 85% for more than 5 minutes (current value: {{ $value | humanizePercentage }})"
+      dashboard: "https://grafana.yourdomain.com/d/rYdddlPWk/node-exporter-full"
+
+  # Memory usage
+  - alert: HighMemoryUsage
+    expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100 > 90
+    for: 5m
+    labels:
+      severity: warning
+      service: infrastructure
+    annotations:
+      summary: "High memory usage on {{ $labels.instance }}"
+      description: "Memory usage is above 90% for more than 5 minutes (current value: {{ $value | humanizePercentage }})"
+      dashboard: "https://grafana.yourdomain.com/d/rYdddlPWk/node-exporter-full"
+
+  # Disk usage
+  - alert: HighDiskUsage
+    expr: (node_filesystem_size_bytes{fstype!~"tmpfs|fuse.lxcfs|squashfs|vfat"} - node_filesystem_free_bytes{fstype!~"tmpfs|fuse.lxcfs|squashfs|vfat"}) / node_filesystem_size_bytes{fstype!~"tmpfs|fuse.lxcfs|squashfs|vfat"} * 100 > 85
+    for: 5m
+    labels:
+      severity: warning
+      service: infrastructure
+    annotations:
+      summary: "High disk usage on {{ $labels.instance }}:{{ $labels.mountpoint }}"
+      description: "Disk usage is above 85% for more than 5 minutes (current value: {{ $value | humanizePercentage }})"
+      dashboard: "https://grafana.yourdomain.com/d/rYdddlPWk/node-exporter-full"
+
+  # Low disk space (less than 10% free)
+  - alert: LowDiskSpace
+    expr: node_filesystem_free_bytes{fstype!~"tmpfs|fuse.lxcfs|squashfs|vfat"} / node_filesystem_size_bytes{fstype!~"tmpfs|fuse.lxcfs|squashfs|vfat"} * 100 < 10
+    for: 5m
+    labels:
+      severity: warning
+      service: infrastructure
+    annotations:
+      summary: "Low disk space on {{ $labels.instance }}:{{ $labels.mountpoint }}"
+      description: "Disk space less than 10% for more than 5 minutes (current value: {{ $value | humanizePercentage }} free)"
+      dashboard: "https://grafana.yourdomain.com/d/rYdddlPWk/node-exporter-full"
+
+  # High load average
+  - alert: HighLoadAverage
+    expr: node_load1 > on(instance) 2 * count without(cpu, mode) (node_cpu_seconds_total{mode="idle"})
+    for: 5m
+    labels:
+      severity: warning
+      service: infrastructure
+    annotations:
+      summary: "High load average on {{ $labels.instance }}"
+      description: "Load average is high for more than 5 minutes (current value: {{ $value }})"
+      dashboard: "https://grafana.yourdomain.com/d/rYdddlPWk/node-exporter-full"
+
+  # Unusual network traffic spikes
+  - alert: UnusualNetworkTrafficIn
+    expr: sum by (instance) (irate(node_network_receive_bytes_total{device!~"lo|veth.+|docker.+|br.+"}[5m])) / 1024 / 1024 > 100
+    for: 5m
+    labels:
+      severity: warning
+      service: infrastructure
+    annotations:
+      summary: "Unusual network traffic in on {{ $labels.instance }}"
+      description: "Network incoming traffic is above 100 MB/s for more than 5 minutes (current value: {{ $value }} MB/s)"
+      dashboard: "https://grafana.yourdomain.com/d/rYdddlPWk/node-exporter-full"
+
+  # Unusual network traffic out
+  - alert: UnusualNetworkTrafficOut
+    expr: sum by (instance) (irate(node_network_transmit_bytes_total{device!~"lo|veth.+|docker.+|br.+"}[5m])) / 1024 / 1024 > 100
+    for: 5m
+    labels:
+      severity: warning
+      service: infrastructure
+    annotations:
+      summary: "Unusual network traffic out on {{ $labels.instance }}"
+      description: "Network outgoing traffic is above 100 MB/s for more than 5 minutes (current value: {{ $value }} MB/s)"
+      dashboard: "https://grafana.yourdomain.com/d/rYdddlPWk/node-exporter-full"
+
+  # High number of threads
+  - alert: HighNumberOfThreads
+    expr: node_processes_threads > 3000
+    for: 5m
+    labels:
+      severity: warning
+      service: infrastructure
+    annotations:
+      summary: "High number of threads on {{ $labels.instance }}"
+      description: "Number of threads is above 3000 for more than 5 minutes (current value: {{ $value }})"
+      dashboard: "https://grafana.yourdomain.com/d/rYdddlPWk/node-exporter-full"
+
+  # Context switching
+  - alert: HighContextSwitching
+    expr: irate(node_context_switches_total[5m]) > 10000
+    for: 5m
+    labels:
+      severity: warning
+      service: infrastructure
+    annotations:
+      summary: "High context switching on {{ $labels.instance }}"
+      description: "Context switching is above 10000 per second for more than 5 minutes (current value: {{ $value }})"
+      dashboard: "https://grafana.yourdomain.com/d/rYdddlPWk/node-exporter-full"
+
+  # System time drift
+  - alert: SystemTimeDrift
+    expr: abs(node_timex_offset_seconds) > 0.1
+    for: 5m
+    labels:
+      severity: warning
+      service: infrastructure
+    annotations:
+      summary: "System time drift on {{ $labels.instance }}"
+      description: "System time is drifting (current offset: {{ $value }} seconds)"
+      dashboard: "https://grafana.yourdomain.com/d/rYdddlPWk/node-exporter-full" 

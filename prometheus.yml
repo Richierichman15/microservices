@@ -1,0 +1,68 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
+
+# Alerting rules
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          # - alertmanager:9093
+
+# Rule files to load
+rule_files:
+  - "rules/node_exporter.rules.yml"
+  - "rules/microservice_api.rules.yml"
+
+scrape_configs:
+  # Scrape Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Node Exporter for server metrics
+  - job_name: 'node_exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          instance: 'microservice-host'
+
+  # Microservice API metrics
+  - job_name: 'microservice_api'
+    metrics_path: '/metrics'
+    scrape_interval: 5s
+    static_configs:
+      - targets: ['microservice-api:3000']
+        labels:
+          service: 'user-service'
+          env: 'production'
+
+  # API Gateway metrics (if using)
+  - job_name: 'api_gateway'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['api-gateway:8080']
+        labels:
+          service: 'api-gateway'
+          env: 'production'
+
+  # MongoDB metrics
+  - job_name: 'mongodb_exporter'
+    static_configs:
+      - targets: ['mongodb-exporter:9216']
+        labels:
+          service: 'mongodb'
+          env: 'production'
+
+  # Alert Manager (if configured)
+  - job_name: 'alertmanager'
+    static_configs:
+      - targets: ['alertmanager:9093']
+
+# Additional settings for remote storage, if needed
+# remote_write:
+#   - url: "http://remote-storage:9201/write"
+#
+# remote_read:
+#   - url: "http://remote-storage:9201/read" 

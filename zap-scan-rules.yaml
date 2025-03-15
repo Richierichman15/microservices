@@ -1,0 +1,204 @@
+---
+# OWASP ZAP Configuration for Microservice API Security Scanning
+env:
+  contexts:
+    - name: "Microservice API"
+      urls:
+        - "http://localhost:3000/api"
+      includePaths:
+        - "^http://localhost:3000/api.*"
+      excludePaths:
+        - "^http://localhost:3000/api/health.*"
+      authentication:
+        method: "json"
+        parameters:
+          loginUrl: "http://localhost:3000/api/v1/auth/login"
+          loginRequestData: '{"email":"admin@example.com","password":"password123"}'
+          loginPageUrl: "http://localhost:3000/api/v1/auth/login"
+          loginResponse: '{"token":".*"}'
+        verification:
+          method: "response"
+          loggedInRegex: ".*\"role\":\"admin\".*"
+      sessionManagement:
+        method: "bearer-token"
+        parameters:
+          tokenExtractorRegex: ".*\"token\":\"([^\"]*)\".*"
+          tokenHeaderName: "Authorization"
+          tokenHeaderFormat: "Bearer %token%"
+      technology:
+        - "NoSQL"
+        - "MongoDB"
+        - "JavaScript"
+        - "Node.js"
+        - "Express"
+        - "JWT"
+
+# Scanner Risk Configuration
+pscan:
+  maxAlertsPerRule: 10
+  maxBodySizeInBytesToScan: 2000000
+  scanOnlyInScope: true
+
+# Passive Scan Configuration
+ascan:
+  attackStrength: "HIGH"
+  defaultPolicy: "API-Security"
+  maxRuleDurationInMins: 5
+  maxScanDurationInMins: 30
+  threadPerHost: 5
+  delayInMs: 0
+  handleAntiCSRFTokens: true
+  scanHeadersAllRequests: true
+
+# API Security Specific Rules
+rules:
+  # API Specific Vulnerabilities - Enable API Security Rules
+  90019: # CORS Misconfiguration
+    threshold: "MEDIUM"
+    strength: "HIGH"
+  90024: # Information Disclosure - Sensitive Information in URL
+    threshold: "LOW"
+    strength: "HIGH"
+  40040: # JSON Hijacking
+    threshold: "LOW"
+    strength: "HIGH"
+
+  # Injection Attacks
+  40018: # SQL Injection
+    threshold: "MEDIUM"
+    strength: "HIGH"
+  40019: # SQL Injection - MySQL
+    threshold: "MEDIUM"
+    strength: "HIGH"
+  40020: # SQL Injection - PostgreSQL
+    threshold: "MEDIUM"
+    strength: "HIGH"
+  40025: # NoSQL Injection - MongoDB
+    threshold: "MEDIUM"
+    strength: "HIGH"
+  90019: # Server Side Code Injection
+    threshold: "MEDIUM"
+    strength: "HIGH"
+  90017: # LDAP Injection
+    threshold: "MEDIUM"
+    strength: "HIGH"
+
+  # XSS Vulnerabilities
+  40012: # Cross Site Scripting (Reflected)
+    threshold: "LOW"
+    strength: "HIGH"
+  40014: # Cross Site Scripting (Persistent)
+    threshold: "LOW"
+    strength: "HIGH" 
+  40016: # Cross Site Scripting (DOM Based)
+    threshold: "LOW"
+    strength: "HIGH"
+  40017: # Cross Site Scripting (Persistent) - Prime
+    threshold: "LOW"
+    strength: "HIGH"
+
+  # Authentication and Session Management
+  10096: # Timestamp Disclosure
+    threshold: "LOW"
+    strength: "HIGH"
+  10105: # Weak Authentication Method
+    threshold: "MEDIUM"
+    strength: "HIGH"
+  10202: # Absence of Anti-CSRF Tokens
+    threshold: "MEDIUM"
+    strength: "HIGH"
+  90001: # Insecure JWT Implementation
+    threshold: "MEDIUM" 
+    strength: "HIGH"
+  90003: # JWT None Algorithm
+    threshold: "HIGH"
+    strength: "HIGH"
+  90028: # Insecure HTTP Methods
+    threshold: "MEDIUM"
+    strength: "HIGH"
+
+  # Information Disclosure
+  10023: # Information Disclosure - Debug Error Messages
+    threshold: "LOW"
+    strength: "HIGH"
+  10024: # Information Disclosure - Sensitive Information in URL
+    threshold: "LOW"
+    strength: "HIGH"
+  10028: # Open Redirect
+    threshold: "MEDIUM"
+    strength: "HIGH"
+
+  # Security Headers
+  10035: # Strict-Transport-Security Header Not Set
+    threshold: "MEDIUM"
+    strength: "HIGH"
+  10038: # Content Security Policy (CSP) Header Not Set
+    threshold: "LOW"
+    strength: "HIGH"
+  10036: # X-Content-Type-Options Header Missing
+    threshold: "LOW"
+    strength: "HIGH"
+
+# Automation Configuration for CI/CD Integration
+automation:
+  jobs:
+    - type: "passiveScan-config"
+      parameters:
+        maxAlertsPerRule: 10
+    - type: "spider"
+      parameters:
+        context: "Microservice API"
+        maxDuration: 10
+        maxDepth: 5
+    - type: "activeScan"
+      parameters:
+        context: "Microservice API"
+        policy: "API-Security"
+        maxRuleDurationInMins: 2
+        maxScanDurationInMins: 20
+    - type: "report"
+      parameters:
+        template: "traditional-xml"
+        reportFile: "zap-scan-report.xml"
+        reportTitle: "Microservice API Security Scan"
+        reportDescription: "Security assessment of the microservice API"
+    - type: "report"
+      parameters:
+        template: "traditional-html"
+        reportFile: "zap-scan-report.html"
+        reportTitle: "Microservice API Security Scan"
+        reportDescription: "Security assessment of the microservice API"
+
+# CI/CD Integration Instructions
+# 
+# To integrate with CI/CD pipelines, use the following command:
+#
+# docker run -t owasp/zap2docker-stable zap-full-scan.py \
+#   -t http://localhost:3000/api \
+#   -c zap-scan-rules.yaml \
+#   -r zap-scan-report.html \
+#   -j \
+#   -a \
+#   -d
+#
+# For Jenkins pipeline:
+#
+# stage('Security Scan') {
+#   steps {
+#     sh 'docker run -v $(pwd):/zap/wrk/:rw -t owasp/zap2docker-stable zap-full-scan.py -t http://localhost:3000/api -c /zap/wrk/zap-scan-rules.yaml -r /zap/wrk/zap-scan-report.html -j -a -d'
+#   }
+# }
+#
+# For GitHub Actions:
+#
+# jobs:
+#   zap_scan:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v2
+#       - name: ZAP Scan
+#         uses: zaproxy/action-full-scan@v0.7.0
+#         with:
+#           target: 'http://localhost:3000/api'
+#           rules_file_name: './zap-scan-rules.yaml'
+#           allow_issue_writing: false 
